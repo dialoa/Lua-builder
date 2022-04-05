@@ -85,7 +85,9 @@ while searching do
 	end
 	-- if require line found, try to import the module's content
 	if i then
-		local module = contents:sub(i,j):match("require%s*%(%s*'(.+)'%)")
+		local module = contents:sub(i,j)
+										:gsub(".*require%s*%(%s*'",'')
+										:gsub("'%)[%s\t]*[\n]$",'')
 
 		local module_contents = find_module(module, {'', opt.sourcepath})
 
