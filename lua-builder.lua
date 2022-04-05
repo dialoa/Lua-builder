@@ -9,26 +9,48 @@ replace them with their source.
 @release 0.1
 
 ]]
-
---- parsarg: parse command line arguments
-local function parsearg()
-	local flag, result = '', {}
+local options = {
+	verbosity = 2,
+	source = nil,
+	output = nil,
+}
+--- options:parsarg: parse command line arguments
+function options:parsearg()
+	local flag
 	for i=1, #arg do
-		-- process flags
-		if flag ~= '' then 
+		-- process flags with argument
+		if flag then 
 			if flag == '-o' or flag == '--output' then
-				result.output = arg[i]
+				self.output = arg[i]
 			end 
-			flag = ''
+			flag = false
 		-- identify flags
 		elseif arg[i]:match('^%-%g') or arg[i]:match('^%-%-%g+') then
-			flag = arg[i]
+			if arg[i] == '-v' or arg[i] == '--verbose' then
+				self.verbosity = 1
+			elseif arg[i] == '-q' or arg[i] == '--quiet' then
+				self.verbosity = 3
+			else -- other flags need one argument, so we store them 
+				flag = arg[i]
+			end
 		-- main argument
 		else
-			result.source = arg[i]
+			self.source = arg[i]
 		end
 	end
-	return result
+end
+
+--- message: display message on stderror
+-- levels: 1 info, 2 warning, 3 error
+local function message(level,str)
+	local heading = {
+		'Lua builder info: ',
+		'Lua builder warning: ',
+		'Lua builder error: ',
+	}
+	if level >= options.verbosity then
+		io.stderr:write(heading[level]..str..'\n')
+	end
 end
 
 --- find_module: find module file and return its contents
@@ -54,18 +76,19 @@ local function find_module(module, paths)
 end
 
 -- parse arguments
-local opt = parsearg()
-if opt.source then
-	opt.sourcepath, opt.source = string.match(opt.source, "(.-)([^\\/]-%.?[^%.\\/]*)$")
-else
-	io.stderr:write('No source file specified. Usage: build.lua path/to/source.lua -o output.lua\n')
-	return 
-end
+options:parsearg()
 
 -- read source file
-local f = io.open(opt.sourcepath..opt.source, 'r')
+if options.source then
+	options.sourcepath, options.source = string.match(options.source, "(.-)([^\\/]-%.?[^%.\\/]*)$")
+else
+	message(3,'No source file specified. Usage: build.lua path/to/source.lua [-o output.lua] [-v] [-q].')
+	return 
+end
+message(0, 'Looking for source file '..options.sourcepath..options.source..'.')
+local f = io.open(options.sourcepath..options.source, 'r')
 if not f then
-	io.stderr:write('File '..opt.sourcepath..opt.source..' not found.\n')
+	message(3, 'Source file '..options.sourcepath..options.source..' not found.')
 	return 
 end
 local contents = f:read('a')
@@ -88,14 +111,16 @@ while searching do
 		local module = contents:sub(i,j)
 										:gsub(".*require%s*%(%s*'",'')
 										:gsub("'%)[%s\t]*[\n]$",'')
+		message(1,'Looking for module '..module..'.')
 
-		local module_contents = find_module(module, {'', opt.sourcepath})
+		local module_contents = find_module(module, {'', options.sourcepath})
 
 		if module_contents then
+			message(1,'Importing module '..module..'.')
 			result = result .. contents:sub(1,i-1) .. module_contents
 			contents = contents:sub(j+1,-1)
 		else
-			io.stderr:write('Module '..module..' not found.\n')
+			message(2,'Module '..module..' not found.')
 			result = result..contents:sub(1,j)
 			contents = contents:sub(j+1,-1)
 		end
@@ -107,10 +132,10 @@ while searching do
 end
 
 -- output the result
-if opt.output then
-	local f = io.open(opt.output, 'w')
+if options.output then
+	local f = io.open(options.output, 'w')
 	if not f then
-		io.stderr:write('Could not write file '..opt.output..': permission denied.\n')
+		message(3,'Could not write file '..options.output..': permission denied.')
 		return 
 	end
 	f:write(result)
