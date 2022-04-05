@@ -12,6 +12,7 @@ replace them with their source.
 local options = {
 	verbosity = 2,
 	source = nil,
+	sourcepath = './'
 	output = nil,
 }
 --- options:parsarg: parse command line arguments
@@ -57,18 +58,18 @@ end
 --@param module string module name
 --@param paths list of paths to search
 local function find_module(module, paths)
-	local contents
+	local fcontents
 	
 	for _,path in ipairs(paths) do
 		local f = io.open(path..module..'.lua', 'r')
 		if f then
-			contents = f:read('a')
+			fcontents = f:read('a')
 			f:close()
 			-- add final newline if needed
-			if not contents:match('\n$') then 
-				contents = contents..'\n'
+			if not fcontents:match('\n$') then 
+				fcontents = fcontents..'\n'
 			end
-			return contents
+			return fcontents
 		end
 	end
 
@@ -113,7 +114,7 @@ while searching do
 										:gsub("'%)[%s\t]*[\n]$",'')
 		message(1,'Looking for module '..module..'.')
 
-		local module_contents = find_module(module, {'', options.sourcepath})
+		local module_contents = find_module(module, {options.sourcepath})
 
 		if module_contents then
 			message(1,'Importing module '..module..'.')
