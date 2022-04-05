@@ -12,7 +12,7 @@ replace them with their source.
 local options = {
 	verbosity = 2,
 	source = nil,
-	sourcepath = './'
+	sourcepath = './',
 	output = nil,
 }
 --- options:parsarg: parse command line arguments
