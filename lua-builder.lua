@@ -1,7 +1,11 @@
---[[-- # Lua-builder - A crude builder to combine Lua source files
+--[[-- # Lua-builder - A simple builder to combine Lua source files
 
 Searches `requires` commands within an input file and
 replace them with their source.
+
+Usage lua lua-builder source.lua [-o,--output output.lua] [-r, --recursive]
+
+More info <https://github.com/jdutant/Lua-builder>.
 
 @author Julien Dutant <julien.dutant@kcl.ac.uk>
 @copyright 2022 Julien Dutant

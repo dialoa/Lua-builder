@@ -1,6 +1,6 @@
 # Lua-builder
  
- A crude builder to combine several Lua source files into one.
+ A simple builder to combine several Lua source files into one.
 
 Requires a Lua interpreter installed. 
 
