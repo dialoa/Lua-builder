@@ -48,7 +48,7 @@ They are not meant to be genuine Lua modules. Thus if your source contains:
 myvariable = require('module')
 ```
 
-Do not expect `myvariable` to exist after the document is built, unless 
+Do not expect `myvariable` to exist after the combined file is built, unless 
 the `module.lua` file sets it. If your imported file ends with:
 
 ```lua
