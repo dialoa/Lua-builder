@@ -18,10 +18,10 @@ local myvariable = require('path/module')
 ```
 
 And replaces them with the contents of the `module.lua` file, if
-found. See [Import line syntax] below for more detail on how to
+found. See [Import line syntax](#import-line-syntax) below for more detail on how to
 format import lines. The contents of `module.lua` are copied/pasted
 as they are, without modification. This will not work with genuine
-Lua modules that return a table. See [Warning] below.
+Lua modules that return a table. See [Warning](#warning) below.
 
 Modules are assumed to be located relative to the source file's path.
 For instance, if we run:
