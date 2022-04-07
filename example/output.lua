@@ -4,6 +4,7 @@
 module_1 = {
 	output = 'Module 1 says hello'
 }
+
 module_2 = { 
 	output = 'Module 2 says hello'
 }

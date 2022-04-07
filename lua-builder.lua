@@ -112,7 +112,7 @@ function Builder:parsearg()
 	-- help
 	if arguments.help then 
 		io.stderr:write(Builder.help_message)
-		io.exit()
+		os.exit(1)
 	end
 
 	-- source
@@ -155,34 +155,39 @@ function Builder:parsearg()
 end
 --- find_require_line: find the first `require` line in text
 function Builder:find_require_line(text)
-	local pattern = '[%w_]+%s*=%s*require%s*%b()'
-	-- try at start of file and after each newline
+	-- pattern: '<variable_name[.subfield[.subfield] = require('<module_name>')\n'
+	-- variable name starts with alphanumeric or _, optionally 
+	-- followed by alphanum, underscores and dots.
+	local pattern = '[%w_][%w_%.]*%s*=%s*require%s*(%b())'
+	local wrappers = {
+		'^[%s\t]*', '[\n\r][%s\t]*', 
+		'^[%s\t]*local[%s\t]*', '[\n\r][%s\t]*local[%s\t]*'
 
-	-- try with or without `local`
-	i,j = text:find('^[%s\t]*'..pattern..'[%s\t]*[\n]')
-	if not i then
-		i,j = text:find('[\n\r][%s\t]*local[%s\t]*'..pattern..'[%s\t]*[\n]')
-	end
-	if not i then
-		i,j = text:find('[\n\r][%s\t]*'..pattern..'[%s\t]*[\n]')
-		-- add 1 to keep the newline
-		if i then i = i + 1 end
-	end
-	if not i then
-		i,j = text:find('[\n\r][%s\t]*local[%s\t]*'..pattern..'[%s\t]*[\n]')
-		-- add 1 to keep the newline
-		if i then i = i + 1 end
+	}
+	local i,j = nil,nil
+	for _,wrapper in ipairs(wrappers) do
+		i,j = text:find(wrapper..pattern..'[%s\t]*[\n]')
+		if i then break end
 	end
 
 	-- if found, extract module name
 	if not i then
 		return
 	else
-		module_name = text:sub(i,j)
-										:gsub(".*require%s*%(%s*'",'')
-										:gsub("'%)[%s\t]*[\n]$",'')
-		if module_name then
-			return i,j,module_name
+		-- get the content within matching brackets
+		local match
+		for _,wrapper in ipairs(wrappers) do
+			match = text:sub(i,j):match(wrapper..pattern..'[%s\t]*[\n]')
+			if match then break end
+		end
+		-- get the content within matching inverted commas, remove them
+		match = match:match("%b''") or match:match('%b""')
+		if match then
+			match = match:sub(2,-2)
+		end
+		-- return result if we have one
+		if match and match ~= '' then 
+			return i,j,match
 		end
 	end
 
@@ -202,8 +207,11 @@ function Builder:find_module(module, paths)
 		if f then
 			fcontents = f:read('a')
 			f:close()
-			-- add final newline if needed
-			if not fcontents:match('\n$') then 
+			-- add beginning and final newline if needed
+			if not fcontents:match('^[\n\r]') then
+				fcontents = '\n'..fcontents
+			end
+			if not fcontents:match('[\n\r]$') then 
 				fcontents = fcontents..'\n'
 			end
 			return fcontents, path..modpath
