@@ -154,19 +154,29 @@ function Builder:parsearg()
 
 end
 --- find_require_line: find the first `require` line in text
+--@return i number index in `text` where the line begins
+--@return j number index in `text` where the line ends
+--@return match str module name found in the require command between brackets  
 function Builder:find_require_line(text)
 	-- pattern: '<variable_name[.subfield[.subfield] = require('<module_name>')\n'
 	-- variable name starts with alphanumeric or _, optionally 
 	-- followed by alphanum, underscores and dots.
+	-- end is the rest of the line, up to newline or end of string.
 	local pattern = '[%w_][%w_%.]*%s*=%s*require%s*(%b())'
 	local wrappers = {
 		'^[%s\t]*', '[\n\r][%s\t]*', 
 		'^[%s\t]*local[%s\t]*', '[\n\r][%s\t]*local[%s\t]*'
 
 	}
-	local i,j = nil,nil
+	local endwrappers = {
+		'.-[\n]', '.-$'
+	}
+	local i,j
 	for _,wrapper in ipairs(wrappers) do
-		i,j = text:find(wrapper..pattern..'[%s\t]*[\n]')
+		for __,endwrapper in ipairs(endwrappers) do
+			i,j = text:find(wrapper..pattern..endwrapper)
+			if i then break end
+		end
 		if i then break end
 	end
 
@@ -177,10 +187,13 @@ function Builder:find_require_line(text)
 		-- get the content within matching brackets
 		local match
 		for _,wrapper in ipairs(wrappers) do
-			match = text:sub(i,j):match(wrapper..pattern..'[%s\t]*[\n]')
+			for __,endwrapper in ipairs(endwrappers) do
+				match = text:sub(i,j):match(wrapper..pattern..endwrapper)
+				if match then break end
+			end
 			if match then break end
 		end
-		-- get the content within matching inverted commas, remove them
+		-- get the string between matching quotes and remove them
 		match = match:match("%b''") or match:match('%b""')
 		if match then
 			match = match:sub(2,-2)
@@ -232,7 +245,7 @@ function Builder:build()
 		local i,j,module = self:find_require_line(input)
 
 		if module then
-			self:message(1,'Looking for module '..module..'.')
+			self:message(1,'Looking for file '..self.sourcepath..module..'.lua.')
 			local module_contents, module_path = self:find_module(module, {self.sourcepath})
 
 			if module_contents then
@@ -255,7 +268,7 @@ function Builder:build()
 				-- take out the beginning of `input` and the require line
 				input = input:sub(j+1,-1)
 			else
-				self:message(2,'Module '..module..' not found.')
+				self:message(2,'File '..module..'.lua not found.')
 				result = result..input:sub(1,j)
 				input = input:sub(j+1,-1)
 			end
