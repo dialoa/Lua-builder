@@ -10,7 +10,7 @@ More info <https://github.com/jdutant/Lua-builder>.
 @author Julien Dutant <julien.dutant@kcl.ac.uk>
 @copyright 2022 Julien Dutant
 @license MIT - see LICENSE file for details.
-@release 0.2
+@release 0.3
 
 ]]
 Builder = {
