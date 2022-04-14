@@ -10,22 +10,28 @@ More info <https://github.com/jdutant/Lua-builder>.
 @author Julien Dutant <julien.dutant@kcl.ac.uk>
 @copyright 2022 Julien Dutant
 @license MIT - see LICENSE file for details.
-@release 0.3
+@release 0.4
 
 ]]
 Builder = {
 	verbosity = 2,
-	recursive = false,
+	recursive = true,
+	strict = false,
 	sourcepath = '',
 	outputfile = nil,
 	source = nil, -- source text, from sourcefile or stdin
 	help_message = [[A simple builder to combine several Lua source files into one. 
 
-Usage: lua lua-builder path/to/input [-o path/to/output] [-h] [-v] [-q]
+Usage: lua lua-builder sourcepath/to/source [-o outpath/to/output] [-n] [-h] [-v] [-q]
 
-input               input file to be scanned
+Replace lines of the form 'input filepath/to/filename' with the contents
+of filename (or filename.lua) located at `sourcepath/to/filepath/to/filename`.
+See <https://github.com/jdutant/Lua-builder> for details.
+
+source              source file to be scanned
 -o, --output file   save the result in an output file
--r, --recursive			recursive mode
+-n, --no-recursion	do not process imported files
+-s, --strict				strict filenames, not looking for `<filename>.lua`
 -q, --quiet         quiet mode
 -v, --verbose       verbose mode
 -h, --help          this help message
@@ -61,11 +67,13 @@ function Builder:message(level,str)
 		io.stderr:write(heading[level]..str..'\n')
 	end
 end
+
 --- splitpath: split a filepath into path and filename
 function Builder:splitpath(filepath)
 	local path, filename = string.match(filepath,"(.-)([^\\/]-%.?[^%.\\/]*)$")
 	return path, filename
 end
+
 --- parsearg: parse command line arguments
 -- return them as a table
 function Builder:parsearg()
@@ -91,8 +99,10 @@ function Builder:parsearg()
 			flag = false
 		-- identify flags
 		elseif arg[i]:match('^%-%g') or arg[i]:match('^%-%-%g+') then
-			if arg[i] == '-r' or arg[i] == '--recursive' then
-				arguments.recursive = true
+			if arg[i] == '-n' or arg[i] == '--no-recursion' then
+				arguments.recursive = false
+			elseif arg[i] == '-s' or arg[i] == '--strict' then
+				arguments.strict = true
 			elseif arg[i] == '-h' or arg[i] == '--help' then
 				arguments.help = true
 			elseif arg[i] == '-v' or arg[i] == '--verbose' then
@@ -153,10 +163,58 @@ function Builder:parsearg()
 	return arguments
 
 end
---- find_require_line: find the first `require` line in text
+
+---find_input_line: find the first `input` line in text
 --@return i number index in `text` where the line begins
 --@return j number index in `text` where the line ends
---@return match str module name found in the require command between brackets  
+--@return match str filepath found in the input line between `input` and EOL or --
+function Builder:find_input_line(text)
+
+	-- find the first line beginning with 'input'
+	local line_beginings = {'^[%s\t]*', '[\n\r][%s\t]*',
+		'^[%s\t]*%-%-', '[\n\r][%s\t]*%-%-',
+	}
+	local line_endings = {'.-[\n]', '.-$'}
+	local pattern = '!input'
+	local firstpos,lastpos
+	for _,begining in ipairs(line_beginings) do
+		for _,ending in ipairs(line_endings) do
+			firstpos,lastpos = text:find(begining..pattern..ending)
+			if firstpos then break end
+		end
+		if firstpos then break end
+	end
+	
+	-- if nothing found, return
+	if not firstpos then return end
+
+	-- get the line, trim out '...!input...'
+	local line = text:sub(firstpos,lastpos)
+	local i,j = line:find(pattern..'[%s%t]*')
+	-- remove beginning up to the pattern and following spaces
+	line = line:sub(j+1,-1)
+	-- looking for quote patterns, 
+	--  i.e. smallest set of arbitrary chars between matching quotes
+	local quote_patterns = { "^'.-'", '^".-"'}
+	i,j = nil,nil
+	for _,quote_pattern in ipairs(quote_patterns) do
+		i,j = line:find(quote_pattern)
+		if i and i+1 < j-1 then
+			filepath = line:sub(i+1,j-1)
+			return firstpos, lastpos, filepath
+		end
+	end
+	-- otherwise match a string of non-space chars
+	i,j = line:find("^%g+")
+	if i then
+		filepath = line:sub(i,j)
+		return firstpos, lastpos, filepath
+	end
+
+	return
+
+end
+
 function Builder:find_require_line(text)
 	-- pattern: '<variable_name[.subfield[.subfield] = require('<module_name>')\n'
 	-- variable name starts with alphanumeric or _, optionally 
@@ -216,7 +274,14 @@ function Builder:find_module(module, paths)
 	local modpath, modname = self:splitpath(module)
 	
 	for _,path in ipairs(paths) do
-		local f = io.open(path..modpath..modname..'.lua', 'r')
+		-- try .lua first unless `--strict` flag is set
+		local f
+		if not self.strict then
+			f = io.open(path..modpath..modname..'.lua', 'r')
+		end
+		if not f then
+			f = io.open(path..modpath..modname, 'r')
+		end
 		if f then
 			fcontents = f:read('a')
 			f:close()
@@ -242,10 +307,12 @@ function Builder:build()
 	-- search for require lines in the source file
 	local search_in_progress = true
 	while search_in_progress do
-		local i,j,module = self:find_require_line(input)
+		local i,j,module = self:find_input_line(input)
 
 		if module then
-			self:message(1,'Looking for file '..self.sourcepath..module..'.lua.')
+			local name = self.strict and self.sourcepath..module
+									or self.sourcepath..module..'[.lua]'
+			self:message(1,'Looking for file '..name)
 			local module_contents, module_path = self:find_module(module, {self.sourcepath})
 
 			if module_contents then
@@ -255,6 +322,7 @@ function Builder:build()
 				if self.recursive then
 					local newbuilder = Builder:new({
 																verbosity = self.verbosity,
+																strict = self.strict,
 																recursive = true,
 																sourcepath = module_path,
 																resultfile = nil,
