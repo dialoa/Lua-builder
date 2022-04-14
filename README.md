@@ -92,7 +92,7 @@ Import lines start with (spaces/tabs and) `!input` or `--!input`.
 Illustration:
 
 ```lua
-!input necessary_file -- necessary import, error if I run the unbuilt script
+!input necessary_file -- necessary import, error when running the unbuilt script
 --!input optional_file -- optional import, doesn't generate an error
 -- --!input third_file -- deactivated input line, won't import anything
 ```
@@ -108,11 +108,6 @@ contains an input line
 
 ]]
 ```
-
-## Linux pipes
-
-The script can be used in pipes. It reads from stdin if no input file is
- provided and writes to stdout if no output file is provided.
 
 ## Import line syntax
 
@@ -156,3 +151,12 @@ use the verbose mode.
 ```bash
 lua lua-builder main.lua -o result.lua --verbose
 ```
+
+### Pipes
+
+The script can be used in pipes. It reads from stdin if no input file is
+ provided and writes to stdout if no output file is provided.
+
+ ```bash
+ cat source.lua | lua lua-builder.lua | cat
+ ```
