@@ -10,7 +10,7 @@ Requires a Lua interpreter installed.
 lua lua-builder [path/to/source.lua] [-o path/to/output] [-n] [-h] [-v] [-q]
 ```
 
-The script searches through `source.lua` for lines of the form:
+The script searches through `source.lua` for lines of the forms:
 
 ```lua
 !input filename
@@ -18,16 +18,15 @@ The script searches through `source.lua` for lines of the form:
 !input path/to/thirdfile -- a third file to read
 ```
 
-And replaces them with the contents of the `filename.lua` file, if
-found. If not found, it will try `filename`. Thus the second
-line above will first look for `filename.lua.lua` then
-`filename.lua`. See [Import line syntax]
-(#import-line-syntax) below for more detail on how to format import
-lines. 
+And replaces them with the contents of the files in question.
+If first tries <filename>.lua, and if not found, <filename>.
+Thus the second line above will in fact first look for 
+`filename.lua.lua` then `filename.lua`. See 
+[Import line syntax](#import-line-syntax) below for more detail. 
 
-The contents of `filename.lua` are imported as they
-are, without modification. They replace the entire line, including 
-anything after your filepath.
+Contents are imported as they are. They replace the entire input line, 
+including anything after the input command - even if it is followed
+by a semicolon.
 
 ```lua
 !input filepath the rest of this line is ignored
@@ -36,8 +35,8 @@ anything after your filepath.
 For legibility, though, I recommend adding `--` before any
 comment at the end of your line.
 
-File paths for imported files  are assumed to be relative to
-the source file's path. For instance, if we run:
+Filepaths for imported files are assumed to be relative to
+the *source* file's path. For instance, if we run:
 
 ```bash
 lua lua-builder src/source.lua -o output.lua
