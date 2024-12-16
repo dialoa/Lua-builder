@@ -1,4 +1,7 @@
 # Lua-builder
+
+DEPRECATED: to be replaced by Lua Code Compile
+Kept because the Statement filter still relies on it.
  
  A simple builder to combine several Lua source files into one.
 
